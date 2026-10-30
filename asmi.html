@@ -1,0 +1,370 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pro Library Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary: #1a252f; --secondary: #2c3e50; --accent: #1abc9c; }
+        body { background-color: #f8f9fa; font-family: 'Inter', sans-serif; }
+        .sidebar { min-height: 100vh; background: var(--primary); color: white; transition: 0.3s; }
+        .sidebar a { color: #bdc3c7; text-decoration: none; padding: 12px 20px; display: block; border-left: 3px solid transparent; }
+        .sidebar a:hover, .sidebar a.active { background: var(--secondary); color: white; border-left: 3px solid var(--accent); }
+        .card { border: none; border-radius: 12px; transition: 0.3s; }
+        .card:hover { transform: translateY(-5px); box-shadow: 0 10px 20px rgba(0,0,0,0.1); }
+        .btn-accent { background-color: var(--accent); color: white; }
+        .btn-accent:hover { background-color: #16a085; color: white; }
+        .hidden { display: none !important; }
+        .badge-available { background-color: #2ecc71; }
+        .badge-out { background-color: #e74c3c; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN VIEW -->
+<div id="loginPage" class="container">
+    <div class="row justify-content-center mt-5">
+        <div class="col-md-4 card p-4 shadow">
+            <div class="text-center mb-4">
+                <i class="fas fa-university fa-3x text-primary"></i>
+                <h3 class="mt-2">LMS Portal</h3>
+            </div>
+            <div class="mb-3">
+                <label>Email Address</label>
+                <input type="email" id="loginEmail" class="form-control" placeholder="std@lib.com">
+            </div>
+            <div class="mb-3">
+                <label>Password</label>
+                <input type="password" id="loginPass" class="form-control" value="123456">
+            </div>
+            <button onclick="handleLogin()" class="btn btn-primary w-100">Sign In</button>
+            <div class="mt-3 xsmall text-center text-muted">
+                Admin: admin@lib.com | Librarian: lib@lib.com | Student: std@lib.com
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN APP VIEW -->
+<div id="appWrapper" class="d-flex hidden">
+    <!-- Sidebar -->
+    <div class="sidebar col-md-2 p-0">
+        <div class="p-3 text-center border-bottom border-secondary">
+            <h5 class="text-white m-0">Library Pro</h5>
+        </div>
+        <div id="navLinks" class="mt-3"></div>
+        <div class="position-absolute bottom-0 w-100 p-3">
+            <button onclick="handleLogout()" class="btn btn-outline-danger btn-sm w-100">Logout</button>
+        </div>
+    </div>
+
+    <!-- Content -->
+    <div class="col-md-10 p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 id="viewTitle">Dashboard</h2>
+            <div id="userBadge" class="text-end"></div>
+        </div>
+
+        <!-- SEARCH BAR -->
+        <div id="searchContainer" class="mb-4">
+            <div class="input-group">
+                <span class="input-group-text bg-white"><i class="fas fa-search"></i></span>
+                <input type="text" id="bookSearch" class="form-control" placeholder="Search by Title, Author or ISBN..." onkeyup="renderBooks()">
+            </div>
+        </div>
+
+        <!-- DASHBOARD STATS -->
+        <div id="dashboardView" class="view-section">
+            <div class="row g-4 mb-4" id="statsCards"></div>
+            
+            <div class="card p-3">
+                <div class="d-flex justify-content-between mb-3 align-items-center">
+                    <h5 class="m-0">Book Catalog</h5>
+                    <button id="addBookBtn" class="btn btn-sm btn-accent hidden" onclick="openBookModal()">+ Add New Book</button>
+                </div>
+                <table class="table align-middle">
+                    <thead class="table-light">
+                        <tr><th>Book Details</th><th>ISBN</th><th>Status</th><th>Action</th></tr>
+                    </thead>
+                    <tbody id="booksList"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- STUDENT: MY BOOKS -->
+        <div id="myBooksView" class="view-section hidden">
+            <h3>My Borrowed Books</h3>
+            <div class="card p-3 mt-3">
+                <table class="table">
+                    <thead><tr><th>Book</th><th>Due Date</th><th>Fine</th><th>Action</th></tr></thead>
+                    <tbody id="studentIssuesList"></tbody>
+                </table>
+            </div>
+        </div>
+
+        <!-- ADMIN: MANAGE USERS -->
+        <div id="usersView" class="view-section hidden">
+            <h3>User Management</h3>
+            <div class="card p-3 mt-3">
+                <table class="table">
+                    <thead><tr><th>Name</th><th>Email</th><th>Role</th></tr></thead>
+                    <tbody id="usersList"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- BOOK MODAL -->
+<div class="modal fade" id="bookModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content p-4">
+            <h4 id="modalLabel">Book Details</h4>
+            <input type="hidden" id="editIdx">
+            <input type="text" id="mTitle" class="form-control mb-2" placeholder="Book Title">
+            <input type="text" id="mAuthor" class="form-control mb-2" placeholder="Author">
+            <input type="text" id="mISBN" class="form-control mb-2" placeholder="ISBN Code">
+            <input type="number" id="mQty" class="form-control mb-3" placeholder="Quantity">
+            <button class="btn btn-primary" onclick="saveBook()">Save Book</button>
+        </div>
+    </div>
+</div>
+
+<script>
+// --- DATA SEEDING ---
+const initialBooks = [
+    { title: "The Alchemist", author: "Paulo Coelho", isbn: "901", qty: 5, avail: 5 },
+    { title: "Atomic Habits", author: "James Clear", isbn: "902", qty: 3, avail: 3 },
+    { title: "Clean Code", author: "Robert Martin", isbn: "903", qty: 2, avail: 2 },
+    { title: "Javascript: The Good Parts", author: "Douglas Crockford", isbn: "904", qty: 4, avail: 4 },
+    { title: "Harry Potter", author: "J.K. Rowling", isbn: "905", qty: 8, avail: 8 },
+    { title: "The Silent Patient", author: "Alex Michaelides", isbn: "906", qty: 2, avail: 2 }
+];
+
+const DB = {
+    users: JSON.parse(localStorage.getItem('lms_users')) || [
+        { name: 'System Admin', email: 'admin@lib.com', pass: '123456', role: 'ADMIN' },
+        { name: 'Sarah Librarian', email: 'lib@lib.com', pass: '123456', role: 'LIBRARIAN' },
+        { name: 'Alex Student', email: 'std@lib.com', pass: '123456', role: 'STUDENT' }
+    ],
+    books: JSON.parse(localStorage.getItem('lms_books')) || initialBooks,
+    issues: JSON.parse(localStorage.getItem('lms_issues')) || []
+};
+
+let currentUser = null;
+const FINE_PER_DAY = 5;
+
+// --- AUTH ---
+function handleLogin() {
+    const email = document.getElementById('loginEmail').value;
+    const pass = document.getElementById('loginPass').value;
+    const user = DB.users.find(u => u.email === email && u.pass === pass);
+    
+    if(user) {
+        localStorage.setItem('lms_session', JSON.stringify(user));
+        initApp();
+    } else {
+        alert("Invalid credentials!");
+    }
+}
+
+function handleLogout() {
+    localStorage.removeItem('lms_session');
+    location.reload();
+}
+
+// --- CORE APP LOGIC ---
+function initApp() {
+    const session = localStorage.getItem('lms_session');
+    if(!session) return;
+    
+    currentUser = JSON.parse(session);
+    document.getElementById('loginPage').classList.add('hidden');
+    document.getElementById('appWrapper').classList.remove('hidden');
+    
+    renderSidebar();
+    showView('dashboard');
+}
+
+function renderSidebar() {
+    const nav = document.getElementById('navLinks');
+    let links = `<a href="#" onclick="showView('dashboard')"><i class="fas fa-th-large me-2"></i> Dashboard</a>`;
+    
+    if(currentUser.role === 'STUDENT') {
+        links += `<a href="#" onclick="showView('myBooks')"><i class="fas fa-book-reader me-2"></i> My Borrowed Books</a>`;
+    } else {
+        links += `<a href="#" onclick="showView('users')"><i class="fas fa-users-cog me-2"></i> Manage Users</a>`;
+        document.getElementById('addBookBtn').classList.remove('hidden');
+    }
+    
+    nav.innerHTML = links;
+    document.getElementById('userBadge').innerHTML = `<strong>${currentUser.name}</strong><br><small class="text-muted">${currentUser.role}</small>`;
+}
+
+function showView(viewId) {
+    document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
+    document.getElementById(viewId + 'View').classList.remove('hidden');
+    document.getElementById('viewTitle').innerText = viewId === 'dashboard' ? 'Book Catalog' : 'Management';
+    
+    if(viewId === 'dashboard') renderBooks();
+    if(viewId === 'myBooks') renderStudentIssues();
+    if(viewId === 'users') renderUsers();
+}
+
+// --- BOOK OPERATIONS ---
+function renderBooks() {
+    const term = document.getElementById('bookSearch').value.toLowerCase();
+    const list = document.getElementById('booksList');
+    
+    const filtered = DB.books.filter(b => 
+        b.title.toLowerCase().includes(term) || b.author.toLowerCase().includes(term) || b.isbn.includes(term)
+    );
+
+    list.innerHTML = filtered.map((b, i) => {
+        const isAlreadyBorrowed = DB.issues.some(iss => iss.isbn === b.isbn && iss.user === currentUser.email);
+        
+        return `
+        <tr>
+            <td>
+                <div class="fw-bold">${b.title}</div>
+                <div class="small text-muted">${b.author}</div>
+            </td>
+            <td><code>${b.isbn}</code></td>
+            <td>
+                <span class="badge ${b.avail > 0 ? 'badge-available' : 'badge-out'}">
+                    ${b.avail} / ${b.qty} Available
+                </span>
+            </td>
+            <td>
+                ${currentUser.role === 'STUDENT' ? 
+                    (isAlreadyBorrowed ? 
+                        `<button class="btn btn-sm btn-outline-secondary" disabled>Already Borrowed</button>` :
+                        `<button class="btn btn-sm btn-accent" ${b.avail === 0 ? 'disabled' : ''} onclick="borrowBook('${b.isbn}')">Borrow</button>`)
+                    :
+                    `<button class="btn btn-sm btn-light" onclick="editBook(${i})"><i class="fas fa-edit"></i></button>
+                     <button class="btn btn-sm btn-light text-danger" onclick="deleteBook(${i})"><i class="fas fa-trash"></i></button>`
+                }
+            </td>
+        </tr>`;
+    }).join('');
+
+    renderStats();
+}
+
+function borrowBook(isbn) {
+    const book = DB.books.find(b => b.isbn === isbn);
+    if(book.avail > 0) {
+        book.avail--;
+        const dueDate = new Date();
+        dueDate.setDate(dueDate.getDate() + 7); // 7 days return policy
+        
+        DB.issues.push({
+            isbn: isbn,
+            title: book.title,
+            user: currentUser.email,
+            issuedDate: new Date().getTime(),
+            dueDate: dueDate.getTime()
+        });
+        
+        saveAndRefresh();
+        alert(`Success! Please return "${book.title}" by ${dueDate.toLocaleDateString()}`);
+    }
+}
+
+// --- STUDENT: MY BOOKS & RETURN ---
+function renderStudentIssues() {
+    const list = document.getElementById('studentIssuesList');
+    const myIssues = DB.issues.filter(iss => iss.user === currentUser.email);
+    const now = new Date().getTime();
+
+    list.innerHTML = myIssues.length ? myIssues.map((iss, i) => {
+        const diffTime = now - iss.dueDate;
+        const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+        const fine = diffDays > 0 ? diffDays * FINE_PER_DAY : 0;
+
+        return `
+        <tr>
+            <td>${iss.title}</td>
+            <td>${new Date(iss.dueDate).toLocaleDateString()}</td>
+            <td class="${fine > 0 ? 'text-danger fw-bold' : ''}">$${fine}</td>
+            <td><button class="btn btn-sm btn-danger" onclick="returnBook('${iss.isbn}')">Return Book</button></td>
+        </tr>`;
+    }).join('') : `<tr><td colspan="4" class="text-center">No books borrowed yet.</td></tr>`;
+}
+
+function returnBook(isbn) {
+    const book = DB.books.find(b => b.isbn === isbn);
+    if(book) book.avail++;
+    
+    // Remove from issues
+    DB.issues = DB.issues.filter(iss => !(iss.isbn === isbn && iss.user === currentUser.email));
+    
+    saveAndRefresh();
+    if(currentUser.role === 'STUDENT') showView('myBooks');
+}
+
+// --- ADMIN FEATURES ---
+function openBookModal() {
+    document.getElementById('editIdx').value = "";
+    document.getElementById('mTitle').value = "";
+    document.getElementById('mAuthor').value = "";
+    document.getElementById('mISBN').value = "";
+    document.getElementById('mQty').value = "";
+    new bootstrap.Modal('#bookModal').show();
+}
+
+function saveBook() {
+    const idx = document.getElementById('editIdx').value;
+    const data = {
+        title: document.getElementById('mTitle').value,
+        author: document.getElementById('mAuthor').value,
+        isbn: document.getElementById('mISBN').value,
+        qty: parseInt(document.getElementById('mQty').value),
+        avail: parseInt(document.getElementById('mQty').value)
+    };
+
+    if(idx === "") DB.books.push(data);
+    else DB.books[idx] = data;
+
+    saveAndRefresh();
+    bootstrap.Modal.getInstance(document.getElementById('bookModal')).hide();
+}
+
+function deleteBook(i) {
+    if(confirm("Delete this book?")) {
+        DB.books.splice(i, 1);
+        saveAndRefresh();
+    }
+}
+
+function renderUsers() {
+    document.getElementById('usersList').innerHTML = DB.users.map(u => `
+        <tr><td>${u.name}</td><td>${u.email}</td><td><span class="badge bg-info">${u.role}</span></td></tr>
+    `).join('');
+}
+
+// --- HELPERS ---
+function saveAndRefresh() {
+    localStorage.setItem('lms_books', JSON.stringify(DB.books));
+    localStorage.setItem('lms_issues', JSON.stringify(DB.issues));
+    renderBooks();
+}
+
+function renderStats() {
+    const stats = document.getElementById('statsCards');
+    if(!stats) return;
+    stats.innerHTML = `
+        <div class="col-md-3"><div class="card p-3 bg-white border-start border-primary border-4"><h6>Total Books</h6><h4>${DB.books.length}</h4></div></div>
+        <div class="col-md-3"><div class="card p-3 bg-white border-start border-success border-4"><h6>In Library</h6><h4>${DB.books.reduce((a,b)=>a+b.avail,0)}</h4></div></div>
+        <div class="col-md-3"><div class="card p-3 bg-white border-start border-warning border-4"><h6>Borrowed</h6><h4>${DB.issues.length}</h4></div></div>
+        <div class="col-md-3"><div class="card p-3 bg-white border-start border-danger border-4"><h6>System Users</h6><h4>${DB.users.length}</h4></div></div>
+    `;
+}
+
+window.onload = initApp;
+</script>
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+</body>
+</html>

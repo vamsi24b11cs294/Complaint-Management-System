@@ -1,0 +1,288 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Student Complaint Management System</title>
+    <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root { --primary-dark: #2c3e50; --accent: #e74c3c; --bg-light: #f4f7f6; }
+        body { background-color: var(--bg-light); font-family: 'Segoe UI', sans-serif; }
+        .sidebar { min-height: 100vh; background: var(--primary-dark); color: white; transition: 0.3s; }
+        .sidebar a { color: #ecf0f1; text-decoration: none; padding: 15px 20px; display: block; border-bottom: 1px solid #34495e; }
+        .sidebar a:hover { background: #34495e; }
+        .card { border: none; border-radius: 12px; box-shadow: 0 4px 12px rgba(0,0,0,0.05); margin-bottom: 20px; }
+        .status-pending { background: #fff3cd; color: #856404; }
+        .status-progress { background: #cce5ff; color: #004085; }
+        .status-resolved { background: #d4edda; color: #155724; }
+        .priority-high { border-left: 5px solid #e74c3c; }
+        .hidden { display: none !important; }
+    </style>
+</head>
+<body>
+
+<!-- LOGIN SECTION -->
+<div id="loginPage" class="container mt-5">
+    <div class="row justify-content-center">
+        <div class="col-md-4 card p-4">
+            <h3 class="text-center mb-4"><i class="fas fa-user-shield text-danger"></i> CMS Login</h3>
+            <input type="email" id="email" class="form-control mb-3" placeholder="Email (admin@cms.com / std@cms.com)">
+            <input type="password" id="pass" class="form-control mb-3" value="123456">
+            <button onclick="auth()" class="btn btn-danger w-100">Login to CMS</button>
+        </div>
+    </div>
+</div>
+
+<!-- MAIN APP SECTION -->
+<div id="app" class="d-flex hidden">
+    <!-- Sidebar -->
+    <div class="sidebar col-md-2 p-0">
+        <div class="p-4 text-center"><h5>CMS Portal</h5></div>
+        <div id="menu">
+            <!-- Dynamic Menu -->
+        </div>
+        <button onclick="logout()" class="btn btn-link text-white mt-5 w-100 text-decoration-none">Logout</button>
+    </div>
+
+    <!-- Content Area -->
+    <div class="col-md-10 p-4">
+        <div class="d-flex justify-content-between align-items-center mb-4">
+            <h2 id="pageTitle">Student Dashboard</h2>
+            <div id="userInfo" class="badge bg-dark p-2"></div>
+        </div>
+
+        <!-- Dashboard Stats -->
+        <div id="statsRow" class="row mb-4">
+            <!-- Dynamic Stats Cards -->
+        </div>
+
+        <!-- NEW COMPLAINT VIEW (STUDENT) -->
+        <div id="newComplaintView" class="view-section hidden">
+            <div class="card p-4">
+                <h4>Submit a New Complaint</h4>
+                <div class="row">
+                    <div class="col-md-6 mb-3">
+                        <label>Category</label>
+                        <select id="cCategory" class="form-select">
+                            <option value="Academics">Academics (Exams, Results, Faculty)</option>
+                            <option value="Hostel">Hostel & Accommodation</option>
+                            <option value="Finance">Finance & Fee Related</option>
+                            <option value="Facilities">Facilities (Library, Lab, Gym)</option>
+                            <option value="Technical">Technical Support</option>
+                        </select>
+                    </div>
+                    <div class="col-md-6 mb-3">
+                        <label>Priority</label>
+                        <select id="cPriority" class="form-select">
+                            <option value="Low">Low</option>
+                            <option value="Medium">Medium</option>
+                            <option value="High">High</option>
+                        </select>
+                    </div>
+                    <div class="col-md-12 mb-3">
+                        <label>Subject / Complaint Title</label>
+                        <input type="text" id="cTitle" class="form-control" placeholder="Brief title of the issue">
+                    </div>
+                    <div class="col-md-12 mb-3">
+                        <label>Detailed Description</label>
+                        <textarea id="cDesc" class="form-control" rows="4" placeholder="Explain your problem in detail..."></textarea>
+                    </div>
+                </div>
+                <button onclick="submitComplaint()" class="btn btn-primary">Submit Complaint</button>
+            </div>
+        </div>
+
+        <!-- COMPLAINT LIST VIEW -->
+        <div id="listView" class="view-section">
+            <h4 id="listHeader">My Complaints</h4>
+            <div id="complaintContainer">
+                <!-- Complaint Cards will be injected here -->
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- ADMIN MODAL: RESOLVE -->
+<div class="modal fade" id="resolveModal" tabindex="-1">
+    <div class="modal-dialog">
+        <div class="modal-content p-4">
+            <h5>Resolve Complaint</h5>
+            <input type="hidden" id="activeComplaintId">
+            <label>Admin Remarks</label>
+            <textarea id="adminRemarks" class="form-control mb-3" rows="3"></textarea>
+            <div class="d-flex gap-2">
+                <button onclick="updateComplaint('In Progress')" class="btn btn-info text-white">Set In-Progress</button>
+                <button onclick="updateComplaint('Resolved')" class="btn btn-success">Mark Resolved</button>
+            </div>
+        </div>
+    </div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js"></script>
+<script>
+    // --- DATABASE ---
+    const DB = {
+        users: [
+            { email: 'admin@cms.com', name: 'System Admin', role: 'ADMIN' },
+            { email: 'std@cms.com', name: 'John Student', role: 'STUDENT' }
+        ],
+        complaints: JSON.parse(localStorage.getItem('cms_data')) || []
+    };
+
+    let currentUser = null;
+
+    // --- AUTH ---
+    function auth() {
+        const email = document.getElementById('email').value;
+        const user = DB.users.find(u => u.email === email);
+        if(user) {
+            currentUser = user;
+            localStorage.setItem('cms_user', JSON.stringify(user));
+            initApp();
+        } else {
+            alert("User not found!");
+        }
+    }
+
+    function logout() {
+        localStorage.removeItem('cms_user');
+        location.reload();
+    }
+
+    // --- APP CORE ---
+    function initApp() {
+        const user = localStorage.getItem('cms_user');
+        if(!user) return;
+        currentUser = JSON.parse(user);
+
+        document.getElementById('loginPage').classList.add('hidden');
+        document.getElementById('app').classList.remove('hidden');
+        document.getElementById('userInfo').innerText = `${currentUser.name} (${currentUser.role})`;
+
+        renderMenu();
+        renderStats();
+        renderComplaints();
+    }
+
+    function renderMenu() {
+        const menu = document.getElementById('menu');
+        let html = `<a href="#" onclick="showView('list')"><i class="fas fa-list me-2"></i> Dashboard</a>`;
+        if(currentUser.role === 'STUDENT') {
+            html += `<a href="#" onclick="showView('new')"><i class="fas fa-plus-circle me-2"></i> File Complaint</a>`;
+        }
+        menu.innerHTML = html;
+    }
+
+    function showView(view) {
+        document.querySelectorAll('.view-section').forEach(v => v.classList.add('hidden'));
+        if(view === 'list') {
+            document.getElementById('listView').classList.remove('hidden');
+            renderComplaints();
+        } else {
+            document.getElementById('newComplaintView').classList.remove('hidden');
+        }
+    }
+
+    // --- LOGIC ---
+    function submitComplaint() {
+        const complaint = {
+            id: Date.now(),
+            student: currentUser.email,
+            studentName: currentUser.name,
+            category: document.getElementById('cCategory').value,
+            priority: document.getElementById('cPriority').value,
+            title: document.getElementById('cTitle').value,
+            desc: document.getElementById('cDesc').value,
+            status: 'Pending',
+            date: new Date().toLocaleString(),
+            remarks: ''
+        };
+
+        if(!complaint.title || !complaint.desc) return alert("Please fill all fields");
+
+        DB.complaints.unshift(complaint);
+        saveDB();
+        showView('list');
+        alert("Complaint filed successfully!");
+    }
+
+    function renderComplaints() {
+        const container = document.getElementById('complaintContainer');
+        const list = currentUser.role === 'ADMIN' ? 
+                     DB.complaints : 
+                     DB.complaints.filter(c => c.student === currentUser.email);
+
+        document.getElementById('listHeader').innerText = currentUser.role === 'ADMIN' ? "All Student Complaints" : "My Complaints";
+
+        container.innerHTML = list.map(c => `
+            <div class="card p-3 ${c.priority === 'High' ? 'priority-high' : ''}">
+                <div class="d-flex justify-content-between align-items-start">
+                    <div>
+                        <span class="badge rounded-pill ${getStatusClass(c.status)} mb-2">${c.status}</span>
+                        <span class="badge bg-secondary mb-2">${c.category}</span>
+                        <h5 class="mb-1">${c.title}</h5>
+                        <p class="text-muted small mb-2">Filed on: ${c.date} | By: ${c.studentName}</p>
+                        <p class="mb-2">${c.desc}</p>
+                        ${c.remarks ? `<div class="bg-light p-2 border-start border-3 border-success small"><strong>Admin Remark:</strong> ${c.remarks}</div>` : ''}
+                    </div>
+                    <div class="text-end">
+                        <span class="d-block small fw-bold text-uppercase ${c.priority === 'High' ? 'text-danger' : 'text-muted'}">Priority: ${c.priority}</span>
+                        ${currentUser.role === 'ADMIN' ? `<button class="btn btn-sm btn-dark mt-3" onclick="openResolveModal(${c.id})">Action</button>` : ''}
+                    </div>
+                </div>
+            </div>
+        `).join('');
+        renderStats();
+    }
+
+    function openResolveModal(id) {
+        document.getElementById('activeComplaintId').value = id;
+        new bootstrap.Modal('#resolveModal').show();
+    }
+
+    function updateComplaint(newStatus) {
+        const id = document.getElementById('activeComplaintId').value;
+        const remarks = document.getElementById('adminRemarks').value;
+        const index = DB.complaints.findIndex(c => c.id == id);
+
+        if(index > -1) {
+            DB.complaints[index].status = newStatus;
+            DB.complaints[index].remarks = remarks;
+            saveDB();
+            bootstrap.Modal.getInstance(document.getElementById('resolveModal')).hide();
+            renderComplaints();
+        }
+    }
+
+    // --- HELPERS ---
+    function getStatusClass(status) {
+        if(status === 'Pending') return 'status-pending';
+        if(status === 'In Progress') return 'status-progress';
+        return 'status-resolved';
+    }
+
+    function saveDB() {
+        localStorage.setItem('cms_data', JSON.stringify(DB.complaints));
+    }
+
+    function renderStats() {
+        const counts = {
+            total: DB.complaints.length,
+            pending: DB.complaints.filter(c => c.status === 'Pending').length,
+            resolved: DB.complaints.filter(c => c.status === 'Resolved').length,
+            academic: DB.complaints.filter(c => c.category === 'Academics').length
+        };
+
+        document.getElementById('statsRow').innerHTML = `
+            <div class="col-md-3"><div class="card p-3 bg-white text-center"><h6>Total Issues</h6><h3>${counts.total}</h3></div></div>
+            <div class="col-md-3"><div class="card p-3 bg-white text-center border-bottom border-warning border-4"><h6>Pending</h6><h3>${counts.pending}</h3></div></div>
+            <div class="col-md-3"><div class="card p-3 bg-white text-center border-bottom border-success border-4"><h6>Resolved</h6><h3>${counts.resolved}</h3></div></div>
+            <div class="col-md-3"><div class="card p-3 bg-white text-center border-bottom border-primary border-4"><h6>Academics</h6><h3>${counts.academic}</h3></div></div>
+        `;
+    }
+
+    window.onload = initApp;
+</script>
+</body>
+</html>

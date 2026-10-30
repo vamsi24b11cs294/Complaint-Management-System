@@ -1,0 +1,25 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Complaint Management Portal</title>
+</head>
+<body>
+  <h2>Student Complaint Portal</h2>
+  <form action="/submit" method="POST">
+    <label for="name">Student Name:</label><br>
+    <input type="text" id="name" name="name" required><br><br>
+
+    <label for="category">Complaint Category:</label><br>
+    <select id="category" name="category" required>
+      <option value="Academics">Academics</option>
+      <option value="Facilities">Facilities</option>
+      <option value="Administration">Administration</option>
+    </select><br><br>
+
+    <label for="details">Complaint Details:</label><br>
+    <textarea id="details" name="details" rows="5" cols="40" required></textarea><br><br>
+
+    <button type="submit">Submit Complaint</button>
+  </form>
+</body>
+</html>
